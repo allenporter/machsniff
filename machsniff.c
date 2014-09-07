@@ -1,0 +1,55 @@
+// Proof of concept for sniffing mach messages using a dynamic library
+// override.
+// $ gcc -Wall -Werror -dynamiclib -o machsniff.dylib machsniff.c
+// $ DYLD_FORCE_FLAT_NAMESPACE=1 DYLD_INSERT_LIBRARIES=machsniff.dylib <command>
+//
+// TODO(allen): Dump the data in a format that is easier to analyze later,
+// since the data is hardly ever just plain ascii. (something like pcap?)
+
+#include <stdio.h>
+#include <dlfcn.h>
+#include <sys/stat.h>
+#include <mach/mach.h>
+#include <servers/bootstrap.h>
+
+mach_msg_return_t (*orig_mach_msg)(mach_msg_header_t* msg,
+    mach_msg_option_t option, mach_msg_size_t send_size,
+    mach_msg_size_t rcv_size, mach_port_t rcv_name, mach_msg_timeout_t timeout,
+    mach_port_t notify) = NULL;
+
+kern_return_t (*orig_bootstrap_look_up)(mach_port_t bp,
+    const name_t service_name, mach_port_t *sp) = NULL;
+
+mach_msg_return_t mach_msg(mach_msg_header_t* msg, mach_msg_option_t option,
+    mach_msg_size_t send_size, mach_msg_size_t rcv_size,
+    mach_port_t rcv_name, mach_msg_timeout_t timeout, mach_port_t notify) {
+  if (orig_mach_msg == NULL) {
+    orig_mach_msg = dlsym(RTLD_NEXT, "mach_msg");
+  }
+  if (option & MACH_SEND_MSG) {
+    printf("==> mach_msg(%d)(%d)\n", rcv_name, msg->msgh_remote_port);
+    printf("    send_size=%d", send_size);
+    if (send_size > 0) {
+      char * buf = (char*)(msg + 1);
+      for (int i = 0; i < send_size; ++i) {
+        printf("%c", buf[i]);
+      }
+      printf("\n");
+    }
+  } else if (option & MACH_RCV_MSG)  {
+    printf("<== mach_msg(%d)(%d)\n", rcv_name, msg->msgh_remote_port);
+  }
+  return orig_mach_msg(msg, option, send_size, rcv_size, rcv_name, timeout,
+      notify);
+}
+
+kern_return_t bootstrap_look_up(mach_port_t bp, const name_t service_name,
+    mach_port_t *sp) {
+  if (orig_bootstrap_look_up == NULL) {
+    orig_bootstrap_look_up = dlsym(RTLD_NEXT, "bootstrap_look_up");
+  }
+  kern_return_t ret = orig_bootstrap_look_up(bp, service_name, sp);
+  printf("bootstrap_look_up(%s) = %d, %d\n", service_name, ret, *sp);
+  return ret;
+}
+
