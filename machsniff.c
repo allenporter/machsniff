@@ -1,10 +1,10 @@
 // Proof of concept for sniffing mach messages using a dynamic library
 // override.
-// $ gcc -Wall -Werror -dynamiclib -o machsniff.dylib machsniff.c
-// $ DYLD_FORCE_FLAT_NAMESPACE=1 DYLD_INSERT_LIBRARIES=machsniff.dylib <command>
+// $ make
+// $ MACHSNIFF_OUTPUT="mach.pcap" DYLD_FORCE_FLAT_NAMESPACE=1 DYLD_INSERT_LIBRARIES=machsniff.dylib <command>
 //
-// TODO(allen): Dump the data in a format that is easier to analyze later,
-// since the data is hardly ever just plain ascii. (something like pcap?)
+// TODO(allen): Remove debugging output, and put all interesting information from
+// the mach header into the pcap file.
 
 #include <stdio.h>
 #include <dlfcn.h>
@@ -12,15 +12,17 @@
 #include <mach/mach.h>
 #include <servers/bootstrap.h>
 
-mach_msg_return_t (*orig_mach_msg)(mach_msg_header_t* msg,
+#include "packet_writer.h"
+
+static mach_msg_return_t (*orig_mach_msg)(mach_msg_header_t* msg,
     mach_msg_option_t option, mach_msg_size_t send_size,
     mach_msg_size_t rcv_size, mach_port_t rcv_name, mach_msg_timeout_t timeout,
     mach_port_t notify) = NULL;
 
-kern_return_t (*orig_bootstrap_look_up)(mach_port_t bp,
+static kern_return_t (*orig_bootstrap_look_up)(mach_port_t bp,
     const name_t service_name, mach_port_t *sp) = NULL;
 
-kern_return_t (*orig_bootstrap_look_up2)(mach_port_t bp,
+static kern_return_t (*orig_bootstrap_look_up2)(mach_port_t bp,
     const name_t service_name, mach_port_t *sp, pid_t target_pid,
     uint64_t flags) = NULL;
 
@@ -36,13 +38,9 @@ mach_msg_return_t mach_msg(mach_msg_header_t* msg, mach_msg_option_t option,
   if (option & MACH_SEND_MSG) {
     printf("==> mach_msg(id=%d)(rcv_name=%d)(remote_port=%d)(local_port=%d)\n",
         msg->msgh_id, rcv_name, msg->msgh_remote_port, msg->msgh_local_port);
-    printf("    send_size=%d, ", send_size);
     if (send_size > 0) {
-      char * buf = (char*)(msg + 1);
-      for (int i = 0; i < send_size; ++i) {
-        printf("%c", buf[i]);
-      }
-      printf("\n");
+      unsigned char * buf = (unsigned char*)(msg + 1);
+      write_packet(buf, send_size, send_size);    
     }
   } else if (option & MACH_RCV_MSG)  {
     printf("<== mach_msg(%d)(%d)\n", rcv_name, msg->msgh_remote_port);
