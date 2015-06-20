@@ -20,15 +20,23 @@ mach_msg_return_t (*orig_mach_msg)(mach_msg_header_t* msg,
 kern_return_t (*orig_bootstrap_look_up)(mach_port_t bp,
     const name_t service_name, mach_port_t *sp) = NULL;
 
+kern_return_t (*orig_bootstrap_look_up2)(mach_port_t bp,
+    const name_t service_name, mach_port_t *sp, pid_t target_pid,
+    uint64_t flags) = NULL;
+
 mach_msg_return_t mach_msg(mach_msg_header_t* msg, mach_msg_option_t option,
     mach_msg_size_t send_size, mach_msg_size_t rcv_size,
     mach_port_t rcv_name, mach_msg_timeout_t timeout, mach_port_t notify) {
   if (orig_mach_msg == NULL) {
     orig_mach_msg = dlsym(RTLD_NEXT, "mach_msg");
+    printf("mach_host_self() = %d\n", mach_host_self());
+    printf("mach_task_self() = %d\n", mach_task_self());
+    printf("mig_get_reply_port() = %d\n", mig_get_reply_port());
   }
   if (option & MACH_SEND_MSG) {
-    printf("==> mach_msg(%d)(%d)\n", rcv_name, msg->msgh_remote_port);
-    printf("    send_size=%d", send_size);
+    printf("==> mach_msg(id=%d)(rcv_name=%d)(remote_port=%d)(local_port=%d)\n",
+        msg->msgh_id, rcv_name, msg->msgh_remote_port, msg->msgh_local_port);
+    printf("    send_size=%d, ", send_size);
     if (send_size > 0) {
       char * buf = (char*)(msg + 1);
       for (int i = 0; i < send_size; ++i) {
@@ -50,6 +58,17 @@ kern_return_t bootstrap_look_up(mach_port_t bp, const name_t service_name,
   }
   kern_return_t ret = orig_bootstrap_look_up(bp, service_name, sp);
   printf("bootstrap_look_up(%s) = %d, %d\n", service_name, ret, *sp);
+  return ret;
+}
+
+kern_return_t bootstrap_look_up2(mach_port_t bp, const name_t service_name,
+    mach_port_t *sp, pid_t target_pid, uint64_t flags) {
+  if (orig_bootstrap_look_up2 == NULL) {
+    orig_bootstrap_look_up2 = dlsym(RTLD_NEXT, "bootstrap_look_up2");
+  }
+  kern_return_t ret = orig_bootstrap_look_up2(bp, service_name, sp, target_pid,
+      flags);
+  printf("bootstrap_look_up2(%s) = %d, %d\n", service_name, ret, *sp);
   return ret;
 }
 
