@@ -64,20 +64,12 @@ static void init_writer() {
   register_cleanup_handler();
 }
 
-static size_t arp_packet_len = 14;
-static char arp_packet[] = "\xff\xff\xff\xff\xff\xff\x00\x00\x00\x00\x00\x00\x08\x06";
-
-void write_packet(const unsigned char* packet, size_t packet_len, size_t actual_len) {
+void write_packet(const mach_msg_header_t* packet, size_t packet_len) {
   init_writer();
 
   struct pcap_pkthdr header;
   gettimeofday(&header.ts, NULL);
-  header.caplen = arp_packet_len + packet_len;
-  header.len = arp_packet_len + actual_len;
-
-  // TODO(allen): Use a better strategy here and enforce snaplen of max_packet_len
-  char full_packet[arp_packet_len + packet_len];
-  memcpy(full_packet, arp_packet, arp_packet_len);
-  memcpy(full_packet + arp_packet_len, packet, packet_len);
-  pcap_dump((u_char *)pdumper, &header, packet); 
+  header.caplen = packet_len;
+  header.len = packet_len;
+  pcap_dump((u_char *)pdumper, &header, (const u_char*)packet);
 }

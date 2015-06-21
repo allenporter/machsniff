@@ -38,10 +38,7 @@ mach_msg_return_t mach_msg(mach_msg_header_t* msg, mach_msg_option_t option,
   if (option & MACH_SEND_MSG) {
     printf("==> mach_msg(id=%d)(rcv_name=%d)(remote_port=%d)(local_port=%d)\n",
         msg->msgh_id, rcv_name, msg->msgh_remote_port, msg->msgh_local_port);
-    if (send_size > 0) {
-      unsigned char * buf = (unsigned char*)(msg + 1);
-      write_packet(buf, send_size, send_size);    
-    }
+    write_packet(msg, send_size);
   } else if (option & MACH_RCV_MSG)  {
     printf("<== mach_msg(%d)(%d)\n", rcv_name, msg->msgh_remote_port);
   }
