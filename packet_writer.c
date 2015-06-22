@@ -11,8 +11,8 @@ static pcap_t* pd = NULL;
 static pcap_dumper_t* pdumper = NULL;
 static size_t max_packet_len = 0xff00;
 
-// Cleans up initialization performed by init_writer.  Note that init_writer only
-// registers this handler if the pcap handle is actually initialized.
+// Cleans up initialization performed by init_writer.  Note that init_writer
+// only registers this handler if the pcap handle is actually initialized.
 static void cleanup_handler(int signum) {
   if (pd == NULL) {
     return;
@@ -37,13 +37,14 @@ static void register_cleanup_handler() {
   }
 }
 
-// Initializes the packet writer.  Opens a pcap file handle, and registers cleanup.
+// Initializes the packet writer.  Opens a pcap file handle, and registers
+// cleanup.
 static void init_writer() {
   if (pd != NULL) {
     // Only initialize once.
     // TODO(allen): Perhaps we should be worried about multi-threaded code here.
-    // Instead, use pthread_once or something similar to initialize this once and
-    // lock all file access with a mutex.
+    // Instead, use pthread_once or something similar to initialize this once
+    // and lock all file access with a mutex.
     return;
   }
   char* output_filename = getenv("MACHSNIFF_OUTPUT");
