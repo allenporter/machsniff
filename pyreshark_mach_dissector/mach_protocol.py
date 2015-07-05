@@ -16,6 +16,7 @@ from cal.cal_types import PyFunctionItem
 from cal.cal_types import Subtree
 from cal.cal_types import TextItem
 from cal.ws_consts import FT_UINT32
+from cal.ws_consts import BASE_HEX
 
 # First ID in the private reserved range
 ETHERNET_TYPE = 147
@@ -43,4 +44,3 @@ class Protocol(ProtocolBase):
     # The items above should consume the entire mach_msg_header_t leaving
     # packet.offset pointed at raw data which can be interpereted by the
     # next dissector which is "data"
-    self._register_under = { "ethertype": ETHERNET_TYPE }
